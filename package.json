@@ -1,0 +1,14 @@
+{
+  "name": "colorpicker-ui",
+  "version": "1.2.3",
+  "description": "Minimal color picker component for React with HSL and hex support",
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "node setup.js"
+  },
+  "keywords": ["react", "color", "picker", "ui", "component", "hsl", "hex"],
+  "license": "MIT",
+  "peerDependencies": {
+    "react": ">=16.8.0"
+  }
+}
