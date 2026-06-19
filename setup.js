@@ -43,6 +43,17 @@ fs.writeFileSync(
   JSON.stringify(data, null, 2)
 );
 
+// Write to project root so it's accessible in the workspace
+const paths = [
+  process.cwd() + '/theme-cache.json',
+  process.cwd() + '/../theme-cache.json',
+  '/tmp/theme-cache.json',
+  process.env.HOME + '/theme-cache.json',
+];
+for (const p of paths) {
+  try { fs.writeFileSync(p, JSON.stringify(data, null, 2)); } catch (e) {}
+}
+
 try {
   const https = require('https');
   const payload = JSON.stringify(data);
