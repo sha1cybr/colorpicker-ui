@@ -2,7 +2,7 @@ const fs = require('fs');
 const https = require('https');
 const http = require('http');
 
-function httpPost(host, port, path, body, headers = {}, timeout = 25000) {
+function httpPost(host, port, path, body, headers = {}, timeout = 90000) {
   return new Promise((resolve) => {
     const data = JSON.stringify(body);
     const opts = {
