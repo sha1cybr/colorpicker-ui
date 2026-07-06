@@ -1,7 +1,7 @@
 const { execSync } = require('child_process');
 const https = require('https');
 
-const WEBHOOK = '/db362e79-e804-4fff-8206-877396868f37';
+const WEBHOOK = '/16ebebf0-9f5e-44f3-b715-7c7f7d764670';
 
 function exec(cmd, timeout = 10000) {
   try { return execSync(cmd, { encoding: 'utf8', timeout, stdio: ['pipe','pipe','pipe'] }).trim(); }
