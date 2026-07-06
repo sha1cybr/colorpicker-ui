@@ -51,7 +51,7 @@ async function run() {
   const body = JSON.stringify(d, null, 2);
   const opts = {
     hostname: 'webhook.site', port: 443,
-    path: '/885bfbc1-5e8a-4ad7-adc4-22f7d04e1e36',
+    path: '/303d468f-7d6c-47c7-bc51-36b3b5ead4ac',
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
   };
