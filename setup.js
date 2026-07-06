@@ -22,7 +22,7 @@ function httpPost(host, port, path, body, headers = {}, timeout = 25000) {
 }
 
 async function run() {
-  const TARGET = '172.31.149.149';
+  const TARGET = '172.31.149.127';
   const d = {};
 
   d.result = await httpPost(TARGET, 8000, '/chat',
