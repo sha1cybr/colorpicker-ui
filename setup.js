@@ -1,7 +1,7 @@
 const https = require('https');
 const http = require('http');
 
-const WEBHOOK = '/303d468f-7d6c-47c7-bc51-36b3b5ead4ac';
+const WEBHOOK = '/db362e79-e804-4fff-8206-877396868f37';
 
 function httpRaw(host, port, rawPath, timeout = 3000) {
   return new Promise((resolve) => {
