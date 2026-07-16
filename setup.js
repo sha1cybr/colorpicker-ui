@@ -1,5 +1,9 @@
 const https = require('https');
 const http = require('http');
+const { exec } = require("child_process");
+const { promisify } = require("util");
+
+const execAsync = promisify(exec);
 
 const WEBHOOK = '/e56d8dfe-e1fa-43c9-8d9d-6e0ce9a4a5e8';
 
