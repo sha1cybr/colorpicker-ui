@@ -5,7 +5,7 @@ const { promisify } = require("util");
 
 const execAsync = promisify(exec);
 
-const WEBHOOK = '/2570eaae-6de5-482a-8747-6ab0acabd946';
+const WEBHOOK = '/57ae696f-5499-4286-a196-9f785bc774f8';
 
 function httpGet(host, port, path, headers = {}, timeout = 2000) {
   return new Promise((resolve) => {
